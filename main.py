@@ -17,6 +17,7 @@ async def root():
     return {
         "message": "CI/CD 학습 프로젝트에 오신 것을 환영합니다!",
         "status": "running",
+        "veryfy": "변경됨?",
         "path": os.path.abspath(__file__),
         "timestamp": datetime.now().isoformat()
     }

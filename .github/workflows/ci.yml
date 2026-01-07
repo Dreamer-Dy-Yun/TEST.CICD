@@ -1,44 +1,69 @@
+# CI (Continuous Integration) 워크플로우
+# 코드 푸시 시 자동으로 빌드하고 테스트합니다
 name: CI - Build and Test
 
+# 워크플로우 실행 트리거 설정
 on:
+  # main, master, develop 브랜치에 푸시할 때 실행
   push:
     branches: [ main, master, develop ]
+  # main, master 브랜치로 Pull Request 생성/업데이트 시 실행
   pull_request:
     branches: [ main, master ]
+  # GitHub Actions 탭에서 수동 실행 가능
   workflow_dispatch:
 
+# 실행할 작업 정의
 jobs:
   build-and-test:
+    # GitHub에서 제공하는 Ubuntu 최신 버전에서 실행
+    # (무료로 사용 가능한 클라우드 환경)
     runs-on: ubuntu-latest
     
+    # 매트릭스 전략: 여러 Python 버전에서 동시에 테스트
+    # 각 버전마다 별도의 작업이 생성되어 병렬 실행됨
     strategy:
       matrix:
         python-version: ['3.9', '3.10', '3.11']
     
+    # 작업 실행 단계들
     steps:
+      # 1단계: GitHub 저장소에서 코드 체크아웃
+      # (워크플로우가 실행되는 가상 머신에 코드를 가져옴)
       - name: Checkout code
         uses: actions/checkout@v3
       
+      # 2단계: Python 환경 설정
+      # 매트릭스로 지정한 Python 버전을 설치
+      # cache: 'pip' - pip 패키지 캐시를 사용하여 설치 속도 향상
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
       
+      # 3단계: 프로젝트 의존성 설치
+      # requirements.txt에 명시된 패키지들 설치 (FastAPI, Uvicorn 등)
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      # 4단계: FastAPI 설치 확인
+      # 의존성이 제대로 설치되었는지 검증
       - name: Verify FastAPI installation
         run: |
           python -c "import fastapi; print(f'FastAPI version: {fastapi.__version__}')"
       
+      # 5단계: 코드 문법 검사
+      # Python 문법 오류가 있는지 확인 (컴파일 가능한지 체크)
       - name: Check code syntax
         run: |
           python -m py_compile main.py
           echo "✅ 코드 문법 검사 통과"
       
+      # 6단계: 테스트 실행 (현재는 플레이스홀더)
+      # 실제 테스트 파일이 있다면 pytest 등을 사용하여 테스트 실행
       - name: Test API endpoints (if tests exist)
         run: |
           echo "테스트가 있다면 여기서 실행됩니다"
