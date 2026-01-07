@@ -82,7 +82,12 @@ jobs:
         run: |
           $deployPath = "$env:USERPROFILE\Desktop\test\deploy"
           Set-Location $deployPath
-          Start-Process python -ArgumentList "main.py" -WindowStyle Hidden
+          # Python 경로 찾기 (여러 버전 중 하나 선택)
+          $pythonPath = (Get-Command python -ErrorAction SilentlyContinue).Source
+          if (-not $pythonPath) {
+            $pythonPath = "C:\Users\$env:USERNAME\AppData\Local\Programs\Python\Python313\python.exe"
+          }
+          Start-Process $pythonPath -ArgumentList "main.py" -WindowStyle Hidden
       
       # 9단계: 배포 완료 메시지
       # 배포가 성공적으로 완료되었음을 알림
