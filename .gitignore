@@ -41,6 +41,9 @@ Thumbs.db
 deploy/
 *.log
 
+# GitHub Actions Runner
+actions-runner/
+
 # 환경 변수
 .env
 .env.local
