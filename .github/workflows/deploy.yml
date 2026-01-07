@@ -96,11 +96,22 @@ jobs:
           & ".\venv\Scripts\pip.exe" install -r requirements.txt
       
       # 7단계: 기존 애플리케이션 중지
-      # 이미 실행 중인 Python/Uvicorn 프로세스가 있으면 종료
-      # -ErrorAction SilentlyContinue: 프로세스가 없어도 에러 무시
+      # 배포 디렉토리에서 실행 중인 애플리케이션만 종료 (다른 Python 프로세스는 유지)
       - name: Stop existing application (if running)
         run: |
-          Get-Process | Where-Object {$_.ProcessName -like "*python*" -or $_.ProcessName -like "*uvicorn*"} | Stop-Process -Force -ErrorAction SilentlyContinue
+          $deployPath = "$env:USERPROFILE\Desktop\test\deploy"
+          # 배포 디렉토리에서 실행 중인 Python 프로세스만 찾아서 종료
+          $processes = Get-Process | Where-Object {
+            ($_.ProcessName -like "*python*") -and 
+            ($_.Path -like "*$deployPath*" -or $_.CommandLine -like "*$deployPath*")
+          }
+          if ($processes) {
+            Write-Host "기존 애플리케이션 종료 중..."
+            $processes | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+          } else {
+            Write-Host "실행 중인 애플리케이션이 없습니다."
+          }
       
       # 8단계: 새 버전 애플리케이션 실행
       # 배포 디렉토리에서 가상환경의 Python을 사용하여 FastAPI 애플리케이션 시작
@@ -113,14 +124,48 @@ jobs:
           # 가상환경의 Python 사용
           $venvPython = "$deployPath\venv\Scripts\python.exe"
           if (-not (Test-Path $venvPython)) {
-            Write-Error "가상환경을 찾을 수 없습니다."
+            Write-Error "가상환경을 찾을 수 없습니다: $venvPython"
+            exit 1
+          }
+          
+          # main.py 파일 확인
+          if (-not (Test-Path "main.py")) {
+            Write-Error "main.py 파일을 찾을 수 없습니다."
             exit 1
           }
           
           Write-Host "애플리케이션 시작 중..."
-          Start-Process $venvPython -ArgumentList "main.py" -WindowStyle Hidden
-          Start-Sleep -Seconds 3
-          Write-Host "애플리케이션이 시작되었습니다."
+          Write-Host "Python 경로: $venvPython"
+          Write-Host "작업 디렉토리: $deployPath"
+          
+          # 애플리케이션 시작
+          $process = Start-Process -FilePath $venvPython -ArgumentList "main.py" -WorkingDirectory $deployPath -WindowStyle Hidden -PassThru
+          
+          if ($process) {
+            Write-Host "프로세스 ID: $($process.Id)"
+            Start-Sleep -Seconds 5
+            
+            # 프로세스가 여전히 실행 중인지 확인
+            $running = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
+            if ($running) {
+              Write-Host "✅ 애플리케이션이 성공적으로 시작되었습니다."
+              
+              # 포트 8000이 열렸는지 확인
+              Start-Sleep -Seconds 2
+              $portCheck = Test-NetConnection -ComputerName localhost -Port 8000 -InformationLevel Quiet -WarningAction SilentlyContinue
+              if ($portCheck) {
+                Write-Host "✅ 포트 8000이 열렸습니다."
+              } else {
+                Write-Warning "⚠️ 포트 8000이 아직 열리지 않았습니다. 잠시 후 다시 확인하세요."
+              }
+            } else {
+              Write-Error "❌ 애플리케이션이 시작 후 종료되었습니다. 로그를 확인하세요."
+              exit 1
+            }
+          } else {
+            Write-Error "❌ 애플리케이션 시작 실패"
+            exit 1
+          }
       
       # 9단계: 배포 완료 메시지
       # 배포가 성공적으로 완료되었음을 알림
