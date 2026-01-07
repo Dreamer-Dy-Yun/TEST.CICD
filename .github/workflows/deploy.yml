@@ -59,14 +59,41 @@ jobs:
           Copy-Item -Path "main.py" -Destination "$deployPath\main.py" -Force
           Copy-Item -Path "requirements.txt" -Destination "$deployPath\requirements.txt" -Force
       
-      # 6단계: 배포 디렉토리에서 의존성 설치
-      # 배포 환경에 필요한 패키지 설치
-      - name: Install dependencies in deployment directory
+      # 6단계: 배포 디렉토리에서 가상환경 생성 및 의존성 설치
+      # 배포 환경에 가상환경을 만들고 필요한 패키지 설치
+      - name: Create virtual environment and install dependencies
         run: |
           $deployPath = "$env:USERPROFILE\Desktop\test\deploy"
           Set-Location $deployPath
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          
+          # Python 경로 찾기
+          $pythonPaths = @(
+            "C:\Users\$env:USERNAME\AppData\Local\Programs\Python\Python313\python.exe",
+            "C:\Users\$env:USERNAME\AppData\Local\Programs\Python\Python312\python.exe",
+            (Get-Command python -ErrorAction SilentlyContinue).Source
+          )
+          $pythonPath = $null
+          foreach ($path in $pythonPaths) {
+            if ($path -and (Test-Path $path)) {
+              $pythonPath = $path
+              break
+            }
+          }
+          if (-not $pythonPath) {
+            Write-Error "Python을 찾을 수 없습니다."
+            exit 1
+          }
+          
+          # 가상환경이 없으면 생성
+          if (-not (Test-Path "venv")) {
+            Write-Host "가상환경 생성 중..."
+            & $pythonPath -m venv venv
+          }
+          
+          # 가상환경 활성화 및 의존성 설치
+          Write-Host "의존성 설치 중..."
+          & ".\venv\Scripts\python.exe" -m pip install --upgrade pip
+          & ".\venv\Scripts\pip.exe" install -r requirements.txt
       
       # 7단계: 기존 애플리케이션 중지
       # 이미 실행 중인 Python/Uvicorn 프로세스가 있으면 종료
@@ -76,18 +103,24 @@ jobs:
           Get-Process | Where-Object {$_.ProcessName -like "*python*" -or $_.ProcessName -like "*uvicorn*"} | Stop-Process -Force -ErrorAction SilentlyContinue
       
       # 8단계: 새 버전 애플리케이션 실행
-      # 배포 디렉토리에서 FastAPI 애플리케이션 시작
+      # 배포 디렉토리에서 가상환경의 Python을 사용하여 FastAPI 애플리케이션 시작
       # -WindowStyle Hidden: 백그라운드에서 실행 (창이 보이지 않음)
       - name: Start application
         run: |
           $deployPath = "$env:USERPROFILE\Desktop\test\deploy"
           Set-Location $deployPath
-          # Python 경로 찾기 (여러 버전 중 하나 선택)
-          $pythonPath = (Get-Command python -ErrorAction SilentlyContinue).Source
-          if (-not $pythonPath) {
-            $pythonPath = "C:\Users\$env:USERNAME\AppData\Local\Programs\Python\Python313\python.exe"
+          
+          # 가상환경의 Python 사용
+          $venvPython = "$deployPath\venv\Scripts\python.exe"
+          if (-not (Test-Path $venvPython)) {
+            Write-Error "가상환경을 찾을 수 없습니다."
+            exit 1
           }
-          Start-Process $pythonPath -ArgumentList "main.py" -WindowStyle Hidden
+          
+          Write-Host "애플리케이션 시작 중..."
+          Start-Process $venvPython -ArgumentList "main.py" -WindowStyle Hidden
+          Start-Sleep -Seconds 3
+          Write-Host "애플리케이션이 시작되었습니다."
       
       # 9단계: 배포 완료 메시지
       # 배포가 성공적으로 완료되었음을 알림
