@@ -1,0 +1,61 @@
+name: Deploy FastAPI Application
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create deployment directory
+        run: |
+          $deployPath = "$env:USERPROFILE\Desktop\test\deploy"
+          if (-not (Test-Path $deployPath)) {
+            New-Item -ItemType Directory -Path $deployPath -Force
+          }
+      
+      - name: Copy files to deployment directory
+        run: |
+          $deployPath = "$env:USERPROFILE\Desktop\test\deploy"
+          Copy-Item -Path "main.py" -Destination "$deployPath\main.py" -Force
+          Copy-Item -Path "requirements.txt" -Destination "$deployPath\requirements.txt" -Force
+          Copy-Item -Path ".github\workflows\deploy.yml" -Destination "$deployPath\.github\workflows\deploy.yml" -Force -ErrorAction SilentlyContinue
+      
+      - name: Install dependencies in deployment directory
+        run: |
+          $deployPath = "$env:USERPROFILE\Desktop\test\deploy"
+          Set-Location $deployPath
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Stop existing application (if running)
+        run: |
+          Get-Process | Where-Object {$_.ProcessName -like "*python*" -or $_.ProcessName -like "*uvicorn*"} | Stop-Process -Force -ErrorAction SilentlyContinue
+      
+      - name: Start application
+        run: |
+          $deployPath = "$env:USERPROFILE\Desktop\test\deploy"
+          Set-Location $deployPath
+          Start-Process python -ArgumentList "main.py" -WindowStyle Hidden
+      
+      - name: Deployment complete
+        run: |
+          Write-Host "배포가 완료되었습니다!"
+          Write-Host "애플리케이션은 http://localhost:8000 에서 실행 중입니다."
+
