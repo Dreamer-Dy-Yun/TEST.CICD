@@ -119,27 +119,28 @@ jobs:
       - name: Start application
         run: |
           $deployPath = "$env:USERPROFILE\Desktop\test\deploy"
-          Set-Location $deployPath
           
-          # 가상환경의 Python 사용
+          # 가상환경의 Python 사용 (전체 경로)
           $venvPython = "$deployPath\venv\Scripts\python.exe"
+          $mainPy = "$deployPath\main.py"
+          
           if (-not (Test-Path $venvPython)) {
             Write-Error "가상환경을 찾을 수 없습니다: $venvPython"
             exit 1
           }
           
-          # main.py 파일 확인
-          if (-not (Test-Path "main.py")) {
-            Write-Error "main.py 파일을 찾을 수 없습니다."
+          if (-not (Test-Path $mainPy)) {
+            Write-Error "main.py 파일을 찾을 수 없습니다: $mainPy"
             exit 1
           }
           
           Write-Host "애플리케이션 시작 중..."
           Write-Host "Python 경로: $venvPython"
+          Write-Host "메인 파일: $mainPy"
           Write-Host "작업 디렉토리: $deployPath"
           
-          # 애플리케이션 시작
-          $process = Start-Process -FilePath $venvPython -ArgumentList "main.py" -WorkingDirectory $deployPath -WindowStyle Hidden -PassThru
+          # 애플리케이션 시작 (전체 경로 사용)
+          $process = Start-Process -FilePath $venvPython -ArgumentList $mainPy -WorkingDirectory $deployPath -WindowStyle Hidden -PassThru
           
           if ($process) {
             Write-Host "프로세스 ID: $($process.Id)"
