@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
 from datetime import datetime
+import os
 
 app = FastAPI(
     title="CI/CD 학습 프로젝트 API",
@@ -17,6 +17,7 @@ async def root():
     return {
         "message": "CI/CD 학습 프로젝트에 오신 것을 환영합니다!",
         "status": "running",
+        "path": os.path.abspath(__file__),
         "timestamp": datetime.now().isoformat()
     }
 
