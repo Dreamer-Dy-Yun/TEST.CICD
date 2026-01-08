@@ -17,7 +17,7 @@ async def root():
     return {
         "message": "CI/CD 학습 프로젝트에 오신 것을 환영합니다!",
         "status": "running",
-        "veryfy": "디플로이 venv 경로 변경",
+        "veryfy": "그냥 변경",
         "path": os.path.abspath(__file__),
         "timestamp": datetime.now().isoformat()
     }
